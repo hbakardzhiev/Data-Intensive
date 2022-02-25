@@ -67,7 +67,7 @@ alter table "Product"
 create table if not exists "Inventory"
 (
     "StoreId"        integer,
-    "InventoryDate"  text,
+    "InventoryDate"  date,
     "ProductId"      integer,
     "InventoryPrice" numeric(7, 2)
 );
@@ -80,7 +80,7 @@ create table if not exists "Purchase"
     "ProductId"    integer,
     "CustomerId"   integer,
     "StoreId"      integer,
-    "PurchaseDate" text
+    "PurchaseDate" date
 );
 
 alter table "Purchase"
