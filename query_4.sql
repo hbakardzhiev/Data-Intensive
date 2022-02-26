@@ -1,4 +1,3 @@
-EXPLAIN ANALYSE
 SELECT "CustomerPostcode", "CustomerDateOfBirth", count("Purchase")
 FROM "Purchase",
      "Customer"

@@ -1,7 +1,5 @@
 create type enum_marriage as enum ('M', 'U');
 
-alter type enum_marriage owner to postgres;
-
 create table if not exists "Customer"
 (
     "CustomerId"            integer not null
@@ -20,9 +18,6 @@ create table if not exists "Customer"
     "CustomerDateOfBirth"   date
 );
 
-alter table "Customer"
-    owner to postgres;
-
 create table if not exists "Store"
 (
     "StoreId"       integer not null
@@ -38,9 +33,6 @@ create table if not exists "Store"
         constraint storepostcoderegex
             check (("StorePostcode")::text ~ '[ a-zA-Z0-9]+'::text)
 );
-
-alter table "Store"
-    owner to postgres;
 
 create unique index if not exists store_storeid_uindex
     on "Store" ("StoreId");
@@ -61,9 +53,6 @@ create table if not exists "Product"
             check (("ProductDescription")::text ~ '[ \.a-zA-Z0-9]+'::text)
 );
 
-alter table "Product"
-    owner to postgres;
-
 create table if not exists "Inventory"
 (
     "StoreId"        integer,
@@ -72,9 +61,6 @@ create table if not exists "Inventory"
     "InventoryPrice" numeric(7, 2)
 );
 
-alter table "Inventory"
-    owner to postgres;
-
 create table if not exists "Purchase"
 (
     "ProductId"    integer,
@@ -82,6 +68,3 @@ create table if not exists "Purchase"
     "StoreId"      integer,
     "PurchaseDate" date
 );
-
-alter table "Purchase"
-    owner to postgres;
