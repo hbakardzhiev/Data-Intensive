@@ -23,12 +23,12 @@ CREATE MATERIALIZED VIEW "PurchasePriceSum" AS
 Select sum(totalSum) from (SELECT sum(inv."InventoryPrice") / count(pur."ProductId") as totalSum
                            from "Inventory" as inv, "Product" as pro, "Purchase" as pur
                            where inv."ProductId" = pur."ProductId" and inv."InventoryDate" = pur."PurchaseDate" and pro."ProductId" = inv."ProductId"
--- and sto."StoreId" = inv."StoreId"
+and sto."StoreId" = inv."StoreId"
                           ) totalSum;
 
 CREATE MATERIALIZED VIEW "ProductCategoryView" AS
 Select pro."ProductCategory" ,avg(inv."InventoryPrice") as avgCategory
 from "Product" as pro, "Inventory" as inv, "Purchase" as pur
 where pro."ProductId" = inv."ProductId" and inv."InventoryDate" = pur."PurchaseDate" and pur."ProductId" = pro."ProductId"
--- and sto."StoreId" = inv."StoreId"
+and sto."StoreId" = inv."StoreId"
 group by "ProductCategory"
