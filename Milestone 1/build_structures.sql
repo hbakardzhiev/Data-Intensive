@@ -26,6 +26,6 @@ CREATE INDEX purchase_product_date ON "Purchase" USING hash ("PurchaseDate");
 
 CREATE INDEX price ON "Inventory" ("InventoryPrice");
 
-CREATE INDEX categories ON "Product" ("ProductCategory");
+CREATE INDEX cat ON "Product" ("ProductCategory");
 
 CREATE INDEX pur_prod ON "Purchase" ("ProductId", "PurchaseDate");

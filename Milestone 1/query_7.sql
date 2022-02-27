@@ -9,4 +9,4 @@ with productID_Date_Quantity (productID, date, count) AS
 select productID, var_pop(count) as PopulationVariance
 from productID_Date_Quantity
 group by productID
-having var_pop(count) > 10;
+having var_pop(count) > 5;
