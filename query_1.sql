@@ -1,4 +1,6 @@
-SELECT DISTINCT "PurchaseProductDate"."productid", "PurchaseProductDate"."productname"
-FROM "PurchaseProductDate"
-WHERE "purchasedate"=%(d)s
-ORDER BY "PurchaseProductDate"."productid";
+SELECT DISTINCT "Product"."ProductId", "Product"."ProductName"
+FROM "Purchase",
+     "Product"
+WHERE "Purchase"."PurchaseDate" = %(d)s
+  AND "Purchase"."ProductId" = "Product"."ProductId"
+ORDER BY "ProductId";

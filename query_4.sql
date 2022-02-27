@@ -1,5 +1,4 @@
-SELECT "CustomerPostcode", "CustomerDateOfBirth", count("Purchase")
-FROM "Purchase",
-     "Customer"
-WHERE "Customer"."CustomerId"="Purchase"."CustomerId"
-GROUP BY "CustomerPostcode", "CustomerDateOfBirth"
+SELECT *
+FROM "CountView"
+WHERE "NumberOfPurchases" > %(n)s
+ORDER BY "CustomerPostcode", "CustomerDateOfBirth";

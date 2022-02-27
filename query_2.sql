@@ -1,5 +1,6 @@
-SELECT DISTINCT "Product"."ProductId"
-FROM "Product"
+SELECT DISTINCT "Inventory"."ProductId"
+FROM "Inventory"
+WHERE "InventoryPrice" >= %(p)s
 EXCEPT
 (
     SELECT DISTINCT "PurchasePrice"."productid"
