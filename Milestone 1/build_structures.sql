@@ -3,7 +3,7 @@ CREATE UNIQUE INDEX year_index ON "Customer" ("CustomerMaritalStatus", extract(y
 
 CREATE INDEX postal_year ON "Customer" ("CustomerPostcode", "CustomerDateOfBirth");
 
-EXPLAIN ANALYSE CREATE MATERIALIZED VIEW "PurchasePrice" (InventoryPrice, ProductId, CustomerId) AS
+CREATE MATERIALIZED VIEW "PurchasePrice" (InventoryPrice, ProductId, CustomerId) AS
 SELECT "InventoryPrice", "Purchase"."ProductId", "Purchase"."CustomerId"
 FROM "Purchase",
      "Inventory"
@@ -25,3 +25,7 @@ ORDER BY "NumberOfPurchases";
 CREATE INDEX purchase_product_date ON "Purchase" USING hash ("PurchaseDate");
 
 CREATE INDEX price ON "Inventory" ("InventoryPrice");
+
+CREATE INDEX categories ON "Product" ("ProductCategory");
+
+CREATE INDEX pur_prod ON "Purchase" ("ProductId", "PurchaseDate");

@@ -1,6 +1,6 @@
-create type enum_marriage as enum ('M', 'U');
+CREATE TYPE enum_marriage AS enum ('M', 'U');
 
-create table if not exists "Customer"
+CREATE UNLOGGED TABLE "Customer"
 (
     "CustomerId"            integer not null
         constraint customer_pk
@@ -18,7 +18,7 @@ create table if not exists "Customer"
     "CustomerDateOfBirth"   date
 );
 
-create table if not exists "Store"
+CREATE UNLOGGED TABLE "Store"
 (
     "StoreId"       integer not null
         constraint store_pk
@@ -34,10 +34,10 @@ create table if not exists "Store"
             check (("StorePostcode")::text ~ '[ a-zA-Z0-9]+'::text)
 );
 
-create unique index if not exists store_storeid_uindex
-    on "Store" ("StoreId");
+CREATE UNIQUE INDEX store_storeid_uindex
+    ON "Store" ("StoreId");
 
-create table if not exists "Product"
+CREATE UNLOGGED TABLE "Product"
 (
     "ProductId"          integer not null
         constraint product_pk
@@ -53,7 +53,7 @@ create table if not exists "Product"
             check (("ProductDescription")::text ~ '[ \.a-zA-Z0-9]+'::text)
 );
 
-create table if not exists "Inventory"
+CREATE UNLOGGED TABLE "Inventory"
 (
     "StoreId"        integer,
     "InventoryDate"  date,
@@ -61,7 +61,7 @@ create table if not exists "Inventory"
     "InventoryPrice" numeric(7, 2)
 );
 
-create table if not exists "Purchase"
+CREATE UNLOGGED TABLE "Purchase"
 (
     "ProductId"    integer,
     "CustomerId"   integer,
