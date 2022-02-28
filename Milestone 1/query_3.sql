@@ -6,7 +6,7 @@ FROM "Customer",
      "PurchasePrice",
      "Product"
 WHERE "PurchasePrice"."productid" = "Product"."ProductId"
-  AND "PurchasePrice".productid = "Customer"."CustomerId"
+  AND "PurchasePrice".customerid = "Customer"."CustomerId"
 GROUP BY CUBE ("CustomerMaritalStatus", "CustomerYearOfBirth",
                "ProductCategory")
 ORDER BY "CustomerMaritalStatus", "CustomerYearOfBirth",
