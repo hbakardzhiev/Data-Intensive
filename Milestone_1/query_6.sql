@@ -1,9 +1,7 @@
-WITH ProdCat AS (SELECT "ProductId", "ProductName"
-                 FROM "Product"
-                 WHERE "ProductCategory" = %(c)s)
-SELECT ProdCat."ProductId", "ProductName"
-FROM ProdCat,
-     "Purchase"
-WHERE EXTRACT(DAY FROM "PurchaseDate") = %(d)s
-  AND EXTRACT(MONTH FROM "PurchaseDate") = %(m)s
-ORDER BY "ProductId";
+select distinct pro."ProductId", pro."ProductName"
+from "Product" as pro, "Purchase" as pur
+where pro."ProductCategory" = %(c)s and
+      pro."ProductId" = pur."ProductId" and
+      EXTRACT(DAY FROM pur."PurchaseDate") = %(d)s AND
+      EXTRACT(MONTH FROM pur."PurchaseDate") = %(m)s
+order by  pro."ProductId";         

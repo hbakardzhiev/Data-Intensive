@@ -1,5 +1,4 @@
-SELECT 0;
---Select DISTINCT "ProductCategory"
---from "PurchasePriceSum", "ProductCategoryView"
---where avgCategory > (select * from "PurchasePriceSum") *%(f)s
---Order By "ProductCategory" ASC;
+Select DISTINCT ProductCategory
+from "TotalView", "ProductCategoryView"
+where avgCategory > (select * from "TotalView") * %(f)s
+order by productcategory;
