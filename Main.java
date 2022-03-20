@@ -10,6 +10,8 @@ import org.apache.spark.sql.SparkSession;
 import org.apache.spark.streaming.Durations;
 import org.apache.spark.streaming.api.java.JavaReceiverInputDStream;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
+import org.apache.spark.streaming.api.java.JavaDStream;
+import org.apache.spark.streaming.api.java.JavaPairDStream;
 import scala.Tuple2;
 
 import java.util.ArrayList;
@@ -121,6 +123,25 @@ public class Main {
         JavaReceiverInputDStream<String> lines = javaStreamingContext.socketTextStream(hostname, 9000);
 
         // TODO: Implement Q4 here.
+        JavaPairDStream<String, Integer> windowedIPCounts = lines
+            // Create count per ip address
+            .flatMap(r -> {
+                ArrayList<String> list = new ArrayList<>();
+                String[] IPs = r.split(" ");
+                for (String IP : IPs) {
+                    list.add(IP);
+                }
+                return list.iterator();
+            })
+            .mapToPair(r -> new Tuple2<>(r, 1))
+            // Reduce over the last 20 secs of data every 4 secs
+            // I.e. sliding window = 20 and sliding interval = 4
+            .reduceByKeyAndWindow((i1, i2) -> i1 + i2, Durations.seconds(20), Durations.seconds(4));
+
+        JavaDStream<Long> totalWindowedIP = lines.countByWindow(Durations.seconds(20), Durations.seconds(4));
+
+        // Iterate over all IP's and calculate the relative frequency?
+        // End of TODO by the way
 
         // Start the streaming context, run it for two minutes or until termination
         javaStreamingContext.start();
@@ -146,7 +167,7 @@ public class Main {
 
         q3(sparkContext, q1RDD);
 
-        // TODO: q4(sparkContext, onServer);
+        q4(sparkContext, onServer);
 
         sparkContext.close();
 
