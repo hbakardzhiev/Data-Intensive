@@ -29,20 +29,37 @@ public class Main {
         // It is advised (but not compulsory) to set the value to 160 when running on the server.
         JavaRDD<String> databaseRDD = sparkContext.textFile(databaseFilePath, 160);
 
-        return databaseRDD.flatMap((FlatMapFunction<String, String>) s -> {
+        // TODO: Implement Q1 here by defining q1RDD based on databaseRDD.
+        JavaRDD<String> q1RDD = databaseRDD
+            .flatMap((FlatMapFunction<String, String>) s -> {
             final ArrayList<String> list = new ArrayList<>();
             if (s.charAt(0) == '#') {
                 return list.iterator();
             }
+            // Split entries
             final String[] split = s.split(",");
             final String relation = split[0];
             final String[] attributes = split[1].split(";");
             final String[] values = split[2].split(";");
+
+            // Add relation, attributes and values to list is requested format 
+            // QUESTION FOR TEUN: why the ";" at the end? They don't specify that. Or is it necessary for elsewhere in the code?
             for (int i = 0; i < attributes.length; i++) {
                 list.add(relation + "," + attributes[i] + "," + values[i] + ";");
             }
+
             return list.iterator();
         });
+
+        // Print results for automated testing
+        System.out.println(">> [q1: R: " + q1RDD.filter(row -> 
+            row.split(",")[0].equals("R")).count() + "]"); 
+        System.out.println(">> [q1: S: " + q1RDD.filter(row -> 
+            row.split(",")[0].equals("S")).count() + "]"); 
+        System.out.println(">> [q1: T: " + q1RDD.filter(row -> 
+            row.split(",")[0].equals("T")).count() + "]"); 
+
+        return q1RDD;
     }
 
     private static void q2(JavaSparkContext sparkContext, JavaRDD<String> q1RDD) {
