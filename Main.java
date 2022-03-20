@@ -44,10 +44,9 @@ public class Main {
             final String[] attributes = split[1].split(";");
             final String[] values = split[2].split(";");
 
-            // Add relation, attributes and values to list is requested format 
-            // QUESTION FOR TEUN: why the ";" at the end? They don't specify that. Or is it necessary for elsewhere in the code?
+            // Add relation, attributes and values to list is requested format
             for (int i = 0; i < attributes.length; i++) {
-                list.add(relation + "," + attributes[i] + "," + values[i] + ";");
+                list.add(relation + "," + attributes[i] + "," + values[i]);
             }
 
             return list.iterator();
