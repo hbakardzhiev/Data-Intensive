@@ -6,7 +6,7 @@ import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.PairFunction;
-import org.apache.spark.sql.SparkSession;
+import org.apache.spark.sql.*;
 import org.apache.spark.streaming.Durations;
 import org.apache.spark.streaming.api.java.JavaReceiverInputDStream;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
@@ -15,6 +15,7 @@ import org.apache.spark.streaming.api.java.JavaPairDStream;
 import scala.Tuple2;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 
 public class Main {
 
@@ -24,7 +25,7 @@ public class Main {
         return JavaSparkContext.fromSparkContext(SparkContext.getOrCreate(sparkConf));
     }
 
-    private static JavaRDD<String> q1(JavaSparkContext sparkContext, boolean onServer) {
+    private static JavaRDD<Relation> q1(JavaSparkContext sparkContext, boolean onServer) {
         String databaseFilePath = (onServer) ? "/Database.csv" : "Database.csv";
 
         // TODO: You may change the value for the minPartitions parameter (template value 160) when running locally.
@@ -32,33 +33,31 @@ public class Main {
         JavaRDD<String> databaseRDD = sparkContext.textFile(databaseFilePath, 160);
 
         // TODO: Implement Q1 here by defining q1RDD based on databaseRDD.
-        JavaRDD<String> q1RDD = databaseRDD
-            .flatMap((FlatMapFunction<String, String>) s -> {
-            final ArrayList<String> list = new ArrayList<>();
-            if (s.charAt(0) == '#') {
-                return list.iterator();
-            }
-            // Split entries
-            final String[] split = s.split(",");
-            final String relation = split[0];
-            final String[] attributes = split[1].split(";");
-            final String[] values = split[2].split(";");
+        JavaRDD<Relation> q1RDD = databaseRDD
+                .flatMap((FlatMapFunction<String, Relation>) s -> {
+                    final ArrayList<Relation> list = new ArrayList<>();
+                    if (s.charAt(0) == '#') {
+                        return list.iterator();
+                    }
+                    // Split entries
+                    final String[] split = s.split(",");
+                    final String relation = split[0];
+                    final String[] attributes = split[1].split(";");
+                    final String[] values = split[2].split(";");
 
-            // Add relation, attributes and values to list is requested format
-            for (int i = 0; i < attributes.length; i++) {
-                list.add(relation + "," + attributes[i] + "," + values[i]);
-            }
+                    // Add relation, attributes and values to list is requested format
+                    for (int i = 0; i < attributes.length; i++) {
+                        final Relation currRelation = new Relation(relation, attributes[i], Integer.parseInt( values[i]));
+                        list.add(currRelation);
+                    }
 
-            return list.iterator();
-        });
+                    return list.iterator();
+                });
 
-        // Print results for automated testing
-        System.out.println(">> [q1: R: " + q1RDD.filter(row -> 
-            row.split(",")[0].equals("R")).count() + "]"); 
-        System.out.println(">> [q1: S: " + q1RDD.filter(row -> 
-            row.split(",")[0].equals("S")).count() + "]"); 
-        System.out.println(">> [q1: T: " + q1RDD.filter(row -> 
-            row.split(",")[0].equals("T")).count() + "]"); 
+        final String[] relationNames = {"R", "S", "T"};
+        Arrays.stream(relationNames).forEach(element ->
+                printFormatted("q1", element, String.valueOf(q1RDD.filter(row ->
+                        row.getRelationName().equals(element)).count())));
 
         return q1RDD;
     }
@@ -66,8 +65,19 @@ public class Main {
     private static void q2(JavaSparkContext sparkContext, JavaRDD<String> q1RDD) {
         SparkSession sparkSession = SparkSession.builder().sparkContext(sparkContext.sc()).getOrCreate();
 
-        // TODO: Implement Q2 here.
 
+
+//        Dataset<Row> relationDF = sparkSession.createDataFrame(q2RDD, Relation.class);
+//        relationDF.createOrReplaceTempView("relations");
+
+
+
+    }
+
+
+    private static void printFormatted(String question, String relationName, String result) {
+        System.out.printf(">> [%s: %s %s]", question, relationName, result);
+        System.out.println();
     }
 
     private static void q3(JavaSparkContext sparkContext, JavaRDD<String> q1RDD) {
@@ -123,19 +133,19 @@ public class Main {
 
         // TODO: Implement Q4 here.
         JavaPairDStream<String, Integer> windowedIPCounts = lines
-            // Create count per ip address
-            .flatMap(r -> {
-                ArrayList<String> list = new ArrayList<>();
-                String[] IPs = r.split(" ");
-                for (String IP : IPs) {
-                    list.add(IP);
-                }
-                return list.iterator();
-            })
-            .mapToPair(r -> new Tuple2<>(r, 1))
-            // Reduce over the last 20 secs of data every 4 secs
-            // I.e. sliding window = 20 and sliding interval = 4
-            .reduceByKeyAndWindow((i1, i2) -> i1 + i2, Durations.seconds(20), Durations.seconds(4));
+                // Create count per ip address
+                .flatMap(r -> {
+                    ArrayList<String> list = new ArrayList<>();
+                    String[] IPs = r.split(" ");
+                    for (String IP : IPs) {
+                        list.add(IP);
+                    }
+                    return list.iterator();
+                })
+                .mapToPair(r -> new Tuple2<>(r, 1))
+                // Reduce over the last 20 secs of data every 4 secs
+                // I.e. sliding window = 20 and sliding interval = 4
+                .reduceByKeyAndWindow(Integer::sum, Durations.seconds(20), Durations.seconds(4));
 
         JavaDStream<Long> totalWindowedIP = lines.countByWindow(Durations.seconds(20), Durations.seconds(4));
 
@@ -160,13 +170,14 @@ public class Main {
 
         JavaSparkContext sparkContext = getSparkContext(onServer);
 
-        JavaRDD<String> q1RDD = q1(sparkContext, onServer);
+        JavaRDD<Relation> q1RDD = q1(sparkContext, onServer);
 
-        // TODO: q2(sparkContext, q1RDD);
 
-        q3(sparkContext, q1RDD);
+//        q2(sparkContext, q1RDD);
 
-        q4(sparkContext, onServer);
+//        q3(sparkContext, q1RDD);
+
+//        q4(sparkContext, onServer);
 
         sparkContext.close();
 
