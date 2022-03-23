@@ -47,7 +47,7 @@ public class Main {
 
                     // Add relation, attributes and values to list is requested format
                     for (int i = 0; i < attributes.length; i++) {
-                        final Relation currRelation = new Relation(relation, attributes[i], Integer.parseInt( values[i]));
+                        final Relation currRelation = new Relation(relation, attributes[i], Integer.parseInt(values[i]));
                         list.add(currRelation);
                     }
 
@@ -66,10 +66,8 @@ public class Main {
         SparkSession sparkSession = SparkSession.builder().sparkContext(sparkContext.sc()).getOrCreate();
 
 
-
 //        Dataset<Row> relationDF = sparkSession.createDataFrame(q2RDD, Relation.class);
 //        relationDF.createOrReplaceTempView("relations");
-
 
 
     }
@@ -80,29 +78,22 @@ public class Main {
         System.out.println();
     }
 
-    private static void q3(JavaSparkContext sparkContext, JavaRDD<String> q1RDD) {
-        JavaPairRDD<String, String> pairRDD = q1RDD.mapToPair((PairFunction<String, String, String>) s -> {
-            final String[] split = s.split(",");
-            final String letter = split[0];
-            final String attribute = split[1];
-            final String value = split[2];
-
-            return new Tuple2<>(letter + "." + attribute, value);
-        });
-        JavaPairRDD<String, Iterable<String>> grouped = pairRDD.groupByKey();
-        JavaPairRDD<Tuple2<String, Iterable<String>>, Tuple2<String, Iterable<String>>> cartesian = grouped.cartesian(grouped);
-        JavaPairRDD<Tuple2<String, Iterable<String>>, Tuple2<String, Iterable<String>>> filtered = cartesian.filter((Function<Tuple2<Tuple2<String, Iterable<String>>, Tuple2<String, Iterable<String>>>, Boolean>) tuple -> {
-            final Tuple2<String, Iterable<String>> first = tuple._1;
-            final Tuple2<String, Iterable<String>> second = tuple._2;
+    private static void q3(JavaSparkContext sparkContext, JavaRDD<Relation> q1RDD) {
+        JavaPairRDD<String, Integer> pairRDD = q1RDD.mapToPair((PairFunction<Relation, String, Integer>) s -> new Tuple2<>(s.getRelationName() + "." + s.getAttributeName(), s.getAttributeValue()));
+        JavaPairRDD<String, Iterable<Integer>> grouped = pairRDD.groupByKey();
+        JavaPairRDD<Tuple2<String, Iterable<Integer>>, Tuple2<String, Iterable<Integer>>> cartesian = grouped.cartesian(grouped);
+        JavaPairRDD<Tuple2<String, Iterable<Integer>>, Tuple2<String, Iterable<Integer>>> filtered = cartesian.filter((Function<Tuple2<Tuple2<String, Iterable<Integer>>, Tuple2<String, Iterable<Integer>>>, Boolean>) tuple -> {
+            final Tuple2<String, Iterable<Integer>> first = tuple._1;
+            final Tuple2<String, Iterable<Integer>> second = tuple._2;
 
             if (first._1.equals(second._1)) {
                 return false;
             }
 
-            for (String s1 : first._2) {
+            for (Integer s1 : first._2) {
                 boolean found = false;
 
-                for (String s2 : second._2) {
+                for (Integer s2 : second._2) {
                     if (s1.equals(s2)) {
                         found = true;
                         break;
@@ -114,14 +105,12 @@ public class Main {
             }
             return true;
         });
-        JavaRDD<String> result = filtered.map((Function<Tuple2<Tuple2<String, Iterable<String>>, Tuple2<String, Iterable<String>>>, String>) tuple -> {
-            final Tuple2<String, Iterable<String>> first = tuple._1;
-            final Tuple2<String, Iterable<String>> second = tuple._2;
-
-
-            return ">> [q3: " + first._1 + "," + second._1 + "]";
-        });
-        result.collect().forEach(System.out::println);
+        Iterable<Tuple2<Tuple2<String, Iterable<Integer>>, Tuple2<String, Iterable<Integer>>>> collected = filtered.collect();
+        for (Tuple2<Tuple2<String, Iterable<Integer>>, Tuple2<String, Iterable<Integer>>> tuple : collected) {
+            final Tuple2<String, Iterable<Integer>> first = tuple._1;
+            final Tuple2<String, Iterable<Integer>> second = tuple._2;
+            printFormatted("q3", first._1, second._1);
+        }
     }
 
     private static void q4(JavaSparkContext sparkContext, boolean onServer) {
@@ -175,7 +164,7 @@ public class Main {
 
 //        q2(sparkContext, q1RDD);
 
-//        q3(sparkContext, q1RDD);
+        q3(sparkContext, q1RDD);
 
 //        q4(sparkContext, onServer);
 
