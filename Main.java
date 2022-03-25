@@ -4,7 +4,6 @@ import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.FlatMapFunction;
-import org.apache.spark.api.java.function.Function;
 import org.apache.spark.api.java.function.PairFunction;
 import org.apache.spark.sql.*;
 import org.apache.spark.streaming.Durations;
@@ -14,8 +13,7 @@ import org.apache.spark.streaming.api.java.JavaDStream;
 import org.apache.spark.streaming.api.java.JavaPairDStream;
 import scala.Tuple2;
 
-import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.*;
 
 public class Main {
 
@@ -80,37 +78,37 @@ public class Main {
 
     private static void q3(JavaSparkContext sparkContext, JavaRDD<Relation> q1RDD) {
         JavaPairRDD<String, Integer> pairRDD = q1RDD.mapToPair((PairFunction<Relation, String, Integer>) s -> new Tuple2<>(s.getRelationName() + "." + s.getAttributeName(), s.getAttributeValue()));
-        JavaPairRDD<String, Iterable<Integer>> grouped = pairRDD.groupByKey();
-        JavaPairRDD<Tuple2<String, Iterable<Integer>>, Tuple2<String, Iterable<Integer>>> cartesian = grouped.cartesian(grouped);
-        JavaPairRDD<Tuple2<String, Iterable<Integer>>, Tuple2<String, Iterable<Integer>>> filtered = cartesian.filter((Function<Tuple2<Tuple2<String, Iterable<Integer>>, Tuple2<String, Iterable<Integer>>>, Boolean>) tuple -> {
-            final Tuple2<String, Iterable<Integer>> first = tuple._1;
-            final Tuple2<String, Iterable<Integer>> second = tuple._2;
+        JavaPairRDD<String, TreeSet<Integer>> grouped = pairRDD.combineByKey(
+                (integer) -> {
+                    final TreeSet<Integer> treeSet = new TreeSet<>();
+                    treeSet.add(integer);
+                    return treeSet;
+                },
+                (list, integer) -> {
+                    list.add(integer);
+                    return list;
+                },
+                (list, list2) -> {
+                    list.addAll(list2);
+                    return list;
+                }
+
+        );
+        JavaPairRDD<Tuple2<String, TreeSet<Integer>>, Tuple2<String, TreeSet<Integer>>> cartesian = grouped.cartesian(grouped);
+        JavaPairRDD<Tuple2<String, TreeSet<Integer>>, Tuple2<String, TreeSet<Integer>>> filtered = cartesian.filter(tuple -> {
+            final Tuple2<String, TreeSet<Integer>> first = tuple._1;
+            final Tuple2<String, TreeSet<Integer>> second = tuple._2;
 
             if (first._1.equals(second._1)) {
                 return false;
             }
 
-            for (Integer s1 : first._2) {
-                boolean found = false;
-
-                for (Integer s2 : second._2) {
-                    if (s1.equals(s2)) {
-                        found = true;
-                        break;
-                    }
-                }
-                if (!found) {
-                    return false;
-                }
-            }
-            return true;
+            return second._2.containsAll(first._2);
         });
-        Iterable<Tuple2<Tuple2<String, Iterable<Integer>>, Tuple2<String, Iterable<Integer>>>> collected = filtered.collect();
-        for (Tuple2<Tuple2<String, Iterable<Integer>>, Tuple2<String, Iterable<Integer>>> tuple : collected) {
-            final Tuple2<String, Iterable<Integer>> first = tuple._1;
-            final Tuple2<String, Iterable<Integer>> second = tuple._2;
-            printFormatted("q3", first._1, second._1);
-        }
+        Iterable<Tuple2<Tuple2<String, TreeSet<Integer>>, Tuple2<String, TreeSet<Integer>>>> collected = filtered.collect();
+        for (Tuple2<Tuple2<String, TreeSet<Integer>>, Tuple2<String, TreeSet<Integer>>> tuple : collected)
+            printFormatted("q3", tuple._1._1, tuple._2._1);
+
     }
 
     private static void q4(JavaSparkContext sparkContext, boolean onServer) {
