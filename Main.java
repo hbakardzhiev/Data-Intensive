@@ -4,6 +4,7 @@ import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.FlatMapFunction;
+import org.apache.spark.api.java.function.MapFunction;
 import org.apache.spark.api.java.function.PairFunction;
 import org.apache.spark.sql.*;
 import org.apache.spark.streaming.Durations;
@@ -54,25 +55,52 @@ public class Main {
 
         final String[] relationNames = {"R", "S", "T"};
         Arrays.stream(relationNames).forEach(element ->
-                printFormatted("q1", element, String.valueOf(q1RDD.filter(row ->
-                        row.getRelationName().equals(element)).count())));
+                printFormatted("q1", element, String.valueOf(q1RDD.filter(row -> row.getRelationName().equals(element)).count())));
 
         return q1RDD;
     }
 
-    private static void q2(JavaSparkContext sparkContext, JavaRDD<String> q1RDD) {
+    private static void q2(JavaSparkContext sparkContext, JavaRDD<Relation> q1RDD) {
         SparkSession sparkSession = SparkSession.builder().sparkContext(sparkContext.sc()).getOrCreate();
 
+        Dataset<Row> relationDF = sparkSession.createDataFrame(q1RDD, Relation.class);
+        relationDF.createOrReplaceTempView("relations");
 
-//        Dataset<Row> relationDF = sparkSession.createDataFrame(q2RDD, Relation.class);
-//        relationDF.createOrReplaceTempView("relations");
+        long result = relationDF.sparkSession().sql("Select relationName from relations where relationName = 'R'").count();
+        printFormatted("q21", String.valueOf(result));
 
+        long result2 = relationDF.sparkSession().sql("Select relationName, attributeName, count(*) as countGroup " +
+                "from (Select relationName, attributeName, attributeValue " +
+                "from relations " +
+                "group by relationName, attributeName, attributeValue) " +
+                "group by relationName, attributeName " +
+                "having countGroup > 1000").count();
 
+        printFormatted("q22", String.valueOf(result2));
+
+        Dataset<Row> results = relationDF.sparkSession().sql(
+                "Select * " +
+                        "from (Select relationName, attributeName, count(*) as countGroup " +
+                        "from (Select relationName, attributeName, attributeValue " +
+                        "from relations " +
+                        "group by relationName, attributeName, attributeValue) " +
+                        "group by relationName, attributeName " +
+                        "order by countGroup " +
+                        "limit 1) ");
+
+        Dataset<String> namesDS = results.map((MapFunction<Row, String>) row -> row.getString(0) + "." + row.getString(1),
+                Encoders.STRING());
+
+        printFormatted("q23", namesDS.first());
     }
 
+    private static void printFormatted(String question, String relationName) {
+        System.out.printf(">> [%s: %s]", question, relationName);
+        System.out.println();
+    }
 
     private static void printFormatted(String question, String relationName, String result) {
-        System.out.printf(">> [%s: %s %s]", question, relationName, result);
+        System.out.printf(">> [%s: %s: %s]", question, relationName, result);
         System.out.println();
     }
 
@@ -106,8 +134,10 @@ public class Main {
             return second._2.containsAll(first._2);
         });
         Iterable<Tuple2<Tuple2<String, TreeSet<Integer>>, Tuple2<String, TreeSet<Integer>>>> collected = filtered.collect();
-        for (Tuple2<Tuple2<String, TreeSet<Integer>>, Tuple2<String, TreeSet<Integer>>> tuple : collected)
-            printFormatted("q3", tuple._1._1, tuple._2._1);
+        for (Tuple2<Tuple2<String, TreeSet<Integer>>, Tuple2<String, TreeSet<Integer>>> tuple : collected) {
+            System.out.printf(">> [q3: %s,%s]", tuple._1._1, tuple._2._1);
+            System.out.println();
+        }
 
     }
 
@@ -159,8 +189,7 @@ public class Main {
 
         JavaRDD<Relation> q1RDD = q1(sparkContext, onServer);
 
-
-//        q2(sparkContext, q1RDD);
+        q2(sparkContext, q1RDD);
 
         q3(sparkContext, q1RDD);
 
