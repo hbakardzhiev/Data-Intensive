@@ -149,29 +149,47 @@ public class Main {
         JavaStreamingContext javaStreamingContext = new JavaStreamingContext(sparkContext, Durations.seconds(2));
         javaStreamingContext.checkpoint("checkpoint");
 
-        String hostname = (onServer) ? "stream-host" : "localhost";
-        JavaReceiverInputDStream<String> lines = javaStreamingContext.socketTextStream(hostname, 9000);
+		String hostname = (onServer) ? "stream-host" : "localhost";
+        JavaReceiverInputDStream<String> lines =
+                javaStreamingContext.socketTextStream(hostname, 9000);
 
         // TODO: Implement Q4 here.
+        System.out.println(lines);
+
         JavaPairDStream<String, Integer> windowedIPCounts = lines
-                // Create count per ip address
-                .flatMap(r -> {
-                    ArrayList<String> list = new ArrayList<>();
-                    String[] IPs = r.split(" ");
-                    for (String IP : IPs) {
-                        list.add(IP);
-                    }
-                    return list.iterator();
-                })
-                .mapToPair(r -> new Tuple2<>(r, 1))
-                // Reduce over the last 20 secs of data every 4 secs
-                // I.e. sliding window = 20 and sliding interval = 4
-                .reduceByKeyAndWindow(Integer::sum, Durations.seconds(20), Durations.seconds(4));
+            // Create count per ip address
+            .flatMap(r -> {
+                ArrayList<String> list = new ArrayList<>();
+                String[] IPs = r.split(" ");
+                for (String IP : IPs) {
+                    list.add(IP);
+                }
+                return list.iterator();
+            })
+            .mapToPair(r -> new Tuple2<>(r, 1))
+            // Reduce over the last 20 secs of data every 4 secs
+            // I.e. sliding window = 20 and sliding interval = 4
+            .reduceByKeyAndWindow((i1, i2) -> i1 + i2, Durations.seconds(20), Durations.seconds(4));
+        
+        windowedIPCounts.print();
 
-        JavaDStream<Long> totalWindowedIP = lines.countByWindow(Durations.seconds(20), Durations.seconds(4));
+        // JavaDStream<Long> totalWindowedIP = lines.countByWindow(Durations.seconds(20), Durations.seconds(4));
 
-        // Iterate over all IP's and calculate the relative frequency?
-        // End of TODO by the way
+        AtomicLong totalCount = new AtomicLong();
+        windowedIPCounts.foreachRDD(rdd -> {
+            rdd.foreach(record -> {
+                totalCount.addAndGet(record._2());
+            });
+        });
+
+        // Iterate over all IP's and print when the relative frequency >= 3%
+        windowedIPCounts.foreachRDD(rdd ->{
+            rdd.foreach(record -> {
+                if (record._2()/totalCount.intValue() >= 0.03) {
+                    System.out.println(record._1());
+                }
+            });
+        });
 
         // Start the streaming context, run it for two minutes or until termination
         javaStreamingContext.start();
@@ -197,7 +215,7 @@ public class Main {
 
         q3(sparkContext, q1RDD);
 
-//        q4(sparkContext, onServer);
+       q4(sparkContext, onServer);
 
         sparkContext.close();
 
