@@ -5,6 +5,7 @@ import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.api.java.function.MapFunction;
+import org.apache.spark.api.java.function.PairFlatMapFunction;
 import org.apache.spark.api.java.function.PairFunction;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Encoders;
@@ -13,11 +14,11 @@ import org.apache.spark.sql.SparkSession;
 import org.apache.spark.streaming.Durations;
 import org.apache.spark.streaming.api.java.JavaReceiverInputDStream;
 import org.apache.spark.streaming.api.java.JavaStreamingContext;
-import org.apache.spark.streaming.api.java.JavaDStream;
 import org.apache.spark.streaming.api.java.JavaPairDStream;
 import scala.Tuple2;
 
 import java.util.*;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class Main {
 
@@ -107,11 +108,11 @@ public class Main {
         System.out.println();
     }
 
-    private static void q3(JavaSparkContext sparkContext, JavaRDD<Relation> q1RDD) {
-        JavaPairRDD<String, Integer> pairRDD = q1RDD.mapToPair((PairFunction<Relation, String, Integer>) s -> new Tuple2<>(s.getRelationName() + "." + s.getAttributeName(), s.getAttributeValue()));
-        JavaPairRDD<String, ArrayList<Integer>> grouped = pairRDD.combineByKey(
+    private static void q3(JavaRDD<Relation> q1RDD) {
+        JavaPairRDD<Integer, String> pairs = q1RDD.mapToPair((PairFunction<Relation, Integer, String>) s -> new Tuple2<>(s.getAttributeValue(), s.getRelationName() + "." + s.getAttributeName()));
+        JavaPairRDD<Integer, HashSet<String>> valuePairs = pairs.combineByKey(
                 (integer) -> {
-                    final ArrayList<Integer> list = new ArrayList<>();
+                    final HashSet<String> list = new HashSet<>();
                     list.add(integer);
                     return list;
                 },
@@ -123,54 +124,57 @@ public class Main {
                     list.addAll(list2);
                     return list;
                 }
-
         );
-        JavaPairRDD<Tuple2<String, ArrayList<Integer>>, Tuple2<String, ArrayList<Integer>>> cartesian = grouped.cartesian(grouped);
-        JavaPairRDD<Tuple2<String, ArrayList<Integer>>, Tuple2<String, ArrayList<Integer>>> filtered = cartesian.filter(tuple -> {
-            final Tuple2<String, ArrayList<Integer>> first = tuple._1;
-            final Tuple2<String, ArrayList<Integer>> second = tuple._2;
-
-            if (first._1.equals(second._1)) {
-                return false;
-            }
-
-            return second._2.containsAll(first._2);
+        JavaPairRDD<String, HashSet<String>> valueSet = valuePairs.flatMapToPair((PairFlatMapFunction<Tuple2<Integer, HashSet<String>>, String, HashSet<String>>) pair ->
+                {
+                    HashSet<String> set = pair._2;
+                    ArrayList<Tuple2<String, HashSet<String>>> list = new ArrayList<>();
+                    for (String relation : set) {
+                        HashSet<String> newSet = new HashSet<>(set);
+                        newSet.remove(relation);
+                        list.add(new Tuple2<>(relation, newSet));
+                    }
+                    return list.iterator();
+                }
+        );
+        JavaPairRDD<String, HashSet<String>> intersected = valueSet.reduceByKey((set, set2) -> {
+            set.retainAll(set2);
+            return set;
         });
-        JavaRDD<Tuple2<String, String>> mapped = filtered.map(tuple -> new Tuple2<>(tuple._1._1, tuple._2._1));
-        Iterable<Tuple2<String, String>> collected = mapped.collect();
+        JavaPairRDD<String, String> finalMapped = intersected.flatMapValues(
+                (FlatMapFunction<HashSet<String>, String>) HashSet::iterator
+        );
+        Iterable<Tuple2<String, String>> collected = finalMapped.collect();
         for (Tuple2<String, String> tuple : collected) {
             System.out.printf(">> [q3: %s,%s]", tuple._1, tuple._2);
             System.out.println();
         }
-
     }
 
     private static void q4(JavaSparkContext sparkContext, boolean onServer) {
         JavaStreamingContext javaStreamingContext = new JavaStreamingContext(sparkContext, Durations.seconds(2));
         javaStreamingContext.checkpoint("checkpoint");
 
-		String hostname = (onServer) ? "stream-host" : "localhost";
+        String hostname = (onServer) ? "stream-host" : "localhost";
         JavaReceiverInputDStream<String> lines =
                 javaStreamingContext.socketTextStream(hostname, 9000);
-
-        // TODO: Implement Q4 here.
         System.out.println(lines);
 
         JavaPairDStream<String, Integer> windowedIPCounts = lines
-            // Create count per ip address
-            .flatMap(r -> {
-                ArrayList<String> list = new ArrayList<>();
-                String[] IPs = r.split(" ");
-                for (String IP : IPs) {
-                    list.add(IP);
-                }
-                return list.iterator();
-            })
-            .mapToPair(r -> new Tuple2<>(r, 1))
-            // Reduce over the last 20 secs of data every 4 secs
-            // I.e. sliding window = 20 and sliding interval = 4
-            .reduceByKeyAndWindow((i1, i2) -> i1 + i2, Durations.seconds(20), Durations.seconds(4));
-        
+                // Create count per ip address
+                .flatMap(r -> {
+                    ArrayList<String> list = new ArrayList<>();
+                    String[] IPs = r.split(" ");
+                    for (String IP : IPs) {
+                        list.add(IP);
+                    }
+                    return list.iterator();
+                })
+                .mapToPair(r -> new Tuple2<>(r, 1))
+                // Reduce over the last 20 secs of data every 4 secs
+                // I.e. sliding window = 20 and sliding interval = 4
+                .reduceByKeyAndWindow((i1, i2) -> i1 + i2, Durations.seconds(20), Durations.seconds(4));
+
         windowedIPCounts.print();
 
         // JavaDStream<Long> totalWindowedIP = lines.countByWindow(Durations.seconds(20), Durations.seconds(4));
@@ -183,9 +187,9 @@ public class Main {
         });
 
         // Iterate over all IP's and print when the relative frequency >= 3%
-        windowedIPCounts.foreachRDD(rdd ->{
+        windowedIPCounts.foreachRDD(rdd -> {
             rdd.foreach(record -> {
-                if (record._2()/totalCount.intValue() >= 0.03) {
+                if (record._2() / totalCount.intValue() >= 0.03) {
                     System.out.println(record._1());
                 }
             });
@@ -213,11 +217,10 @@ public class Main {
 
         q2(sparkContext, q1RDD);
 
-        q3(sparkContext, q1RDD);
+        q3(q1RDD);
 
-       q4(sparkContext, onServer);
+        q4(sparkContext, onServer);
 
         sparkContext.close();
-
     }
 }
